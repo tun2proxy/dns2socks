@@ -1,0 +1,3 @@
+[export]
+include = ["dns2socks_start", "dns2socks_stop", "dns2socks_set_log_callback"]
+exclude = []

@@ -15,12 +15,11 @@ use tokio::{
     net::{TcpListener, TcpStream, ToSocketAddrs, UdpSocket},
 };
 use trust_dns_proto::op::{Message, Query};
-pub use {
-    ::tokio_util::sync::CancellationToken,
-    api::{dns2socks_start, dns2socks_stop},
-    config::{ArgVerbosity, Config},
-    dump_logger::dns2socks_set_log_callback,
-};
+
+pub use ::tokio_util::sync::CancellationToken;
+pub use api::{dns2socks_start, dns2socks_stop};
+pub use config::{ArgVerbosity, Config};
+pub use dump_logger::dns2socks_set_log_callback;
 
 const MAX_BUFFER_SIZE: usize = 4096;
 
