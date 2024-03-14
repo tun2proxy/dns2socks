@@ -8,7 +8,11 @@ authors = ["ssrlive"]
 description = "Convert DNS requests to SOCKS5 proxy."
 readme = "README.md"
 
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [dependencies]
+chrono = "0.4"
 clap = { version = "4.5", features = ["derive", "wrap_help"] }
 ctrlc2 = { version = "3.5", features = ["tokio", "termination"] }
 dotenvy = "0.15"
@@ -18,4 +22,5 @@ moka = { version = "0.12", features = ["future"] }
 rand = "0.8"
 socks5-impl = "0.5"
 tokio = { version = "1.36", features = ["full"] }
+tokio-util = "0.7"
 trust-dns-proto = "0.23"

@@ -4,6 +4,7 @@ use trust_dns_proto::{
     rr::{record_type::RecordType, Name, RData},
 };
 
+#[allow(dead_code)]
 pub fn build_dns_query(domain: &str, query_type: RecordType, used_by_tcp: bool) -> Result<Vec<u8>, String> {
     use rand::{rngs::StdRng, Rng, SeedableRng};
     let name = Name::from_str(domain).map_err(|e| e.to_string())?;

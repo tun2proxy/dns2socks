@@ -1,7 +1,8 @@
+mod api;
 mod config;
-pub mod dns;
+mod dns;
+mod dump_logger;
 
-pub use config::Config;
 use moka::future::Cache;
 use socks5_impl::{
     client,
@@ -14,10 +15,17 @@ use tokio::{
     net::{TcpListener, TcpStream, ToSocketAddrs, UdpSocket},
 };
 use trust_dns_proto::op::{Message, Query};
+pub use {
+    api::{dns2socks_start, dns2socks_stop},
+    config::{ArgVerbosity, Config},
+    dump_logger::dns2socks_set_log_callback,
+};
+
+pub type BoxError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
 const MAX_BUFFER_SIZE: usize = 4096;
 
-pub async fn main_entry(config: Config) -> Result<()> {
+pub async fn main_entry(config: Config, shutdown_token: tokio_util::sync::CancellationToken) -> Result<()> {
     let user_key = match (&config.username, &config.password) {
         (Some(username), password) => Some(UserKey::new(username, password.clone().unwrap_or_default())),
         _ => None,
@@ -36,6 +44,9 @@ pub async fn main_entry(config: Config) -> Result<()> {
     }
 
     tokio::select! {
+        _ = shutdown_token.cancelled() => {
+            log::info!("Shutdown received");
+        },
         res = tokio::spawn(udp_thread(config.clone(), user_key.clone(), cache.clone(), timeout)) => {
             handle_error(res, "UDP");
         },
@@ -47,7 +58,7 @@ pub async fn main_entry(config: Config) -> Result<()> {
     Ok(())
 }
 
-pub async fn udp_thread(opt: Config, user_key: Option<UserKey>, cache: Cache<Vec<Query>, Message>, timeout: Duration) -> Result<()> {
+pub(crate) async fn udp_thread(opt: Config, user_key: Option<UserKey>, cache: Cache<Vec<Query>, Message>, timeout: Duration) -> Result<()> {
     let listener = Arc::new(UdpSocket::bind(&opt.listen_addr).await?);
     log::info!("Udp listening on: {}", opt.listen_addr);
 
@@ -123,7 +134,7 @@ async fn udp_incoming_handler(
     Ok::<(), Error>(())
 }
 
-pub async fn tcp_thread(opt: Config, user_key: Option<UserKey>, cache: Cache<Vec<Query>, Message>, timeout: Duration) -> Result<()> {
+pub(crate) async fn tcp_thread(opt: Config, user_key: Option<UserKey>, cache: Cache<Vec<Query>, Message>, timeout: Duration) -> Result<()> {
     let listener = TcpListener::bind(&opt.listen_addr).await?;
     log::info!("TCP listening on: {}", opt.listen_addr);
 
@@ -213,7 +224,7 @@ fn log_dns_message(prefix: &str, domain: &str, message: &Message) {
     log::trace!("{} {:?} <==> {:?}", prefix, domain, ipaddr);
 }
 
-pub fn create_dns_cache() -> Cache<Vec<Query>, Message> {
+pub(crate) fn create_dns_cache() -> Cache<Vec<Query>, Message> {
     Cache::builder()
         .time_to_live(Duration::from_secs(30 * 60))
         .time_to_idle(Duration::from_secs(5 * 60))

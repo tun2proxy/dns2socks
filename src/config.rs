@@ -58,11 +58,57 @@ impl Default for Config {
 }
 
 impl Config {
-    pub fn parse_cmd() -> Self {
+    pub fn parse_args() -> Self {
         clap::Parser::parse()
+    }
+
+    pub fn listen_addr(&mut self, listen_addr: SocketAddr) -> &mut Self {
+        self.listen_addr = listen_addr;
+        self
+    }
+
+    pub fn dns_remote_server(&mut self, dns_remote_server: SocketAddr) -> &mut Self {
+        self.dns_remote_server = dns_remote_server;
+        self
+    }
+
+    pub fn socks5_server(&mut self, socks5_server: SocketAddr) -> &mut Self {
+        self.socks5_server = socks5_server;
+        self
+    }
+
+    pub fn username(&mut self, username: Option<String>) -> &mut Self {
+        self.username = username;
+        self
+    }
+
+    pub fn password(&mut self, password: Option<String>) -> &mut Self {
+        self.password = password;
+        self
+    }
+
+    pub fn force_tcp(&mut self, force_tcp: bool) -> &mut Self {
+        self.force_tcp = force_tcp;
+        self
+    }
+
+    pub fn cache_records(&mut self, cache_records: bool) -> &mut Self {
+        self.cache_records = cache_records;
+        self
+    }
+
+    pub fn verbosity(&mut self, verbosity: ArgVerbosity) -> &mut Self {
+        self.verbosity = verbosity;
+        self
+    }
+
+    pub fn timeout(&mut self, timeout: u64) -> &mut Self {
+        self.timeout = timeout;
+        self
     }
 }
 
+#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum, Default)]
 pub enum ArgVerbosity {
     Off = 0,
@@ -83,6 +129,31 @@ impl std::fmt::Display for ArgVerbosity {
             ArgVerbosity::Info => write!(f, "info"),
             ArgVerbosity::Debug => write!(f, "debug"),
             ArgVerbosity::Trace => write!(f, "trace"),
+        }
+    }
+}
+
+impl From<log::Level> for ArgVerbosity {
+    fn from(level: log::Level) -> Self {
+        match level {
+            log::Level::Error => ArgVerbosity::Error,
+            log::Level::Warn => ArgVerbosity::Warn,
+            log::Level::Info => ArgVerbosity::Info,
+            log::Level::Debug => ArgVerbosity::Debug,
+            log::Level::Trace => ArgVerbosity::Trace,
+        }
+    }
+}
+
+impl From<ArgVerbosity> for log::LevelFilter {
+    fn from(level: ArgVerbosity) -> Self {
+        match level {
+            ArgVerbosity::Off => log::LevelFilter::Off,
+            ArgVerbosity::Error => log::LevelFilter::Error,
+            ArgVerbosity::Warn => log::LevelFilter::Warn,
+            ArgVerbosity::Info => log::LevelFilter::Info,
+            ArgVerbosity::Debug => log::LevelFilter::Debug,
+            ArgVerbosity::Trace => log::LevelFilter::Trace,
         }
     }
 }
