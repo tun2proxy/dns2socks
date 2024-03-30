@@ -69,6 +69,8 @@ jobs:
           elif [[ "${{ matrix.host_os }}" == "macos-latest" ]]; then
             zip -j mypubdir4/dns2socks-${{ matrix.target }}.zip target/${{ matrix.target }}/release/dns2socks README.md target/dns2socks-ffi.h target/${{ matrix.target }}/release/libdns2socks.dylib
             if [[ "${{ matrix.target }}" == "x86_64-apple-darwin" ]]; then
+              ./build-aarch64-apple-ios.sh
+              zip -r mypubdir4/dns2socks-aarch64-apple-ios-xcframework.zip ./dns2socks.xcframework/
               ./build-apple.sh
               zip -r mypubdir4/dns2socks-apple-xcframework.zip ./dns2socks.xcframework/
             fi
