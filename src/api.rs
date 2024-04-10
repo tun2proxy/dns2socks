@@ -42,7 +42,7 @@ pub unsafe extern "C" fn dns2socks_start(
 
     log::set_max_level(verbosity.into());
     if let Err(err) = log::set_boxed_logger(Box::<crate::dump_logger::DumpLogger>::default()) {
-        log::error!("set logger error: {}", err);
+        log::warn!("set logger error: {}", err);
     }
 
     let mut config = crate::Config::default();

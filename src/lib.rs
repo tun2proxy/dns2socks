@@ -104,16 +104,16 @@ async fn udp_incoming_handler(
     }
 
     let proxy_addr = opt.socks5_server;
-    let udp_server_addr = opt.dns_remote_server;
+    let dest_addr = opt.dns_remote_server;
 
     let data = if opt.force_tcp {
         let mut new_buf = (buf.len() as u16).to_be_bytes().to_vec();
         new_buf.append(&mut buf);
-        tcp_via_socks5_server(proxy_addr, udp_server_addr, auth, &new_buf, timeout)
+        tcp_via_socks5_server(proxy_addr, dest_addr, auth, &new_buf, timeout)
             .await
             .map_err(|e| format!("querying \"{domain}\" {e}"))?
     } else {
-        client::UdpClientImpl::datagram(proxy_addr, udp_server_addr, auth)
+        client::UdpClientImpl::datagram(proxy_addr, dest_addr, auth)
             .await
             .map_err(|e| format!("preparing to query \"{domain}\" {e}"))?
             .transfer_data(&buf, timeout)
@@ -125,7 +125,8 @@ async fn udp_incoming_handler(
 
     listener.send_to(&msg_buf, &src).await?;
 
-    log_dns_message("DNS query via UDP", &domain, &message);
+    let prefix = format!("DNS query via {}", if opt.force_tcp { "TCP" } else { "UDP" });
+    log_dns_message(&prefix, &domain, &message);
     if opt.cache_records {
         dns_cache_put_message(&cache, &message).await;
     }
