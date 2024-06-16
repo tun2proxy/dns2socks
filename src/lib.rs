@@ -3,6 +3,7 @@ mod config;
 mod dns;
 mod dump_logger;
 
+use hickory_proto::op::{Message, Query};
 use moka::future::Cache;
 use socks5_impl::{
     client,
@@ -14,7 +15,6 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufStream},
     net::{TcpListener, TcpStream, ToSocketAddrs, UdpSocket},
 };
-use trust_dns_proto::op::{Message, Query};
 
 pub use ::tokio_util::sync::CancellationToken;
 pub use api::{dns2socks_start, dns2socks_stop};

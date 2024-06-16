@@ -28,7 +28,6 @@ cbindgen --config cbindgen.toml -l C -o target/include/dns2socks.h
 cat > target/include/dns2socks.modulemap <<EOF
 framework module dns2socks {
     umbrella header "dns2socks.h"
-
     export *
     module * { export * }
 }
