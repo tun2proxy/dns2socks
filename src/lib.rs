@@ -218,7 +218,7 @@ fn log_dns_message(prefix: &str, domain: &str, message: &Message) {
         Ok(ipaddr) => {
             format!("{:?}", ipaddr)
         }
-        Err(e) => e,
+        Err(e) => e.to_string(),
     };
     log::trace!("{} {:?} <==> {:?}", prefix, domain, ipaddr);
 }
