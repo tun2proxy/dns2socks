@@ -63,12 +63,12 @@ jobs:
           else
             cargo build --all-features --release --target ${{ matrix.target }}
           fi
-          cbindgen --config cbindgen.toml -o target/dns2socks-ffi.h
+          cbindgen --config cbindgen.toml -o target/dns2socks.h
           if [[ "${{ matrix.host_os }}" == "windows-latest" ]]; then
             powershell -Command "(Get-Item README.md).LastWriteTime = Get-Date"
-            powershell Compress-Archive -Path target/${{ matrix.target }}/release/dns2socks.exe, README.md, target/dns2socks-ffi.h, target/${{ matrix.target }}/release/dns2socks.dll -DestinationPath mypubdir4/dns2socks-${{ matrix.target }}.zip
+            powershell Compress-Archive -Path target/${{ matrix.target }}/release/dns2socks.exe, README.md, target/dns2socks.h, target/${{ matrix.target }}/release/dns2socks.dll -DestinationPath mypubdir4/dns2socks-${{ matrix.target }}.zip
           elif [[ "${{ matrix.host_os }}" == "macos-latest" ]]; then
-            zip -j mypubdir4/dns2socks-${{ matrix.target }}.zip target/${{ matrix.target }}/release/dns2socks README.md target/dns2socks-ffi.h target/${{ matrix.target }}/release/libdns2socks.dylib
+            zip -j mypubdir4/dns2socks-${{ matrix.target }}.zip target/${{ matrix.target }}/release/dns2socks README.md target/dns2socks.h target/${{ matrix.target }}/release/libdns2socks.dylib
             if [[ "${{ matrix.target }}" == "x86_64-apple-darwin" ]]; then
               ./build-aarch64-apple-ios.sh
               zip -r mypubdir4/dns2socks-aarch64-apple-ios-xcframework.zip ./dns2socks.xcframework/
@@ -76,7 +76,7 @@ jobs:
               zip -r mypubdir4/dns2socks-apple-xcframework.zip ./dns2socks.xcframework/
             fi
           elif [[ "${{ matrix.host_os }}" == "ubuntu-latest" ]]; then
-            zip -j mypubdir4/dns2socks-${{ matrix.target }}.zip target/${{ matrix.target }}/release/dns2socks README.md target/dns2socks-ffi.h target/${{ matrix.target }}/release/libdns2socks.so
+            zip -j mypubdir4/dns2socks-${{ matrix.target }}.zip target/${{ matrix.target }}/release/dns2socks README.md target/dns2socks.h target/${{ matrix.target }}/release/libdns2socks.so
           fi
 
       - name: Publish
