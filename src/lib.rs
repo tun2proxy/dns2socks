@@ -1,3 +1,4 @@
+mod android;
 mod api;
 mod config;
 mod dns;

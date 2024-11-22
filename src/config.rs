@@ -157,3 +157,19 @@ impl From<ArgVerbosity> for log::LevelFilter {
         }
     }
 }
+
+impl TryFrom<i32> for ArgVerbosity {
+    type Error = std::io::Error;
+
+    fn try_from(value: i32) -> Result<Self, <ArgVerbosity as TryFrom<i32>>::Error> {
+        match value {
+            0 => Ok(ArgVerbosity::Off),
+            1 => Ok(ArgVerbosity::Error),
+            2 => Ok(ArgVerbosity::Warn),
+            3 => Ok(ArgVerbosity::Info),
+            4 => Ok(ArgVerbosity::Debug),
+            5 => Ok(ArgVerbosity::Trace),
+            _ => Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid verbosity level")),
+        }
+    }
+}
