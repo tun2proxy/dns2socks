@@ -25,6 +25,7 @@ pub use dump_logger::dns2socks_set_log_callback;
 const MAX_BUFFER_SIZE: usize = 4096;
 
 pub async fn main_entry(config: Config, shutdown_token: tokio_util::sync::CancellationToken) -> Result<()> {
+    log::info!("Starting DNS2Socks listening on {}...", config.listen_addr);
     let user_key = match (&config.username, &config.password) {
         (Some(username), password) => Some(UserKey::new(username, password.clone().unwrap_or_default())),
         _ => None,
@@ -54,11 +55,20 @@ pub async fn main_entry(config: Config, shutdown_token: tokio_util::sync::Cancel
         },
     }
 
+    log::info!("DNS2Socks stopped");
+
     Ok(())
 }
 
 pub(crate) async fn udp_thread(opt: Config, user_key: Option<UserKey>, cache: Cache<Vec<Query>, Message>, timeout: Duration) -> Result<()> {
-    let listener = Arc::new(UdpSocket::bind(&opt.listen_addr).await?);
+    let listener = match UdpSocket::bind(&opt.listen_addr).await {
+        Ok(listener) => listener,
+        Err(e) => {
+            log::error!("UDP listener {} error \"{}\"", opt.listen_addr, e);
+            return Err(e.into());
+        }
+    };
+    let listener = Arc::new(listener);
     log::info!("Udp listening on: {}", opt.listen_addr);
 
     loop {
@@ -135,7 +145,13 @@ async fn udp_incoming_handler(
 }
 
 pub(crate) async fn tcp_thread(opt: Config, user_key: Option<UserKey>, cache: Cache<Vec<Query>, Message>, timeout: Duration) -> Result<()> {
-    let listener = TcpListener::bind(&opt.listen_addr).await?;
+    let listener = match TcpListener::bind(&opt.listen_addr).await {
+        Ok(listener) => listener,
+        Err(e) => {
+            log::error!("TCP listener {} error \"{}\"", opt.listen_addr, e);
+            return Err(e.into());
+        }
+    };
     log::info!("TCP listening on: {}", opt.listen_addr);
 
     while let Ok((mut incoming, _)) = listener.accept().await {
