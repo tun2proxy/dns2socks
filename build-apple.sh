@@ -24,7 +24,7 @@ cargo build --release --target aarch64-apple-ios-sim
 echo "Generating includes..."
 mkdir -p target/include/
 rm -rf target/include/*
-cbindgen --config cbindgen.toml -l C -o target/include/dns2socks.h
+cbindgen --config cbindgen.toml -o target/include/dns2socks.h
 cat > target/include/dns2socks.modulemap <<EOF
 framework module dns2socks {
     umbrella header "dns2socks.h"
