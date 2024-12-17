@@ -21,7 +21,9 @@ hickory-proto = "0.24"
 log = "0.4"
 moka = { version = "0.12", default-features = false, features = ["future"] }
 rand = "0.8"
-socks5-impl = "0.6"
+socks5-impl = { version = "0.6", default-features = false, features = [
+    "client",
+] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7"
 
