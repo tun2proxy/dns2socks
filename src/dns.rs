@@ -7,12 +7,11 @@ use std::{net::IpAddr, str::FromStr};
 
 #[allow(dead_code)]
 pub fn build_dns_query(domain: &str, query_type: RecordType, used_by_tcp: bool) -> std::io::Result<Vec<u8>> {
-    use rand::{rngs::StdRng, Rng, SeedableRng};
     let name = Name::from_str(domain).map_err(|e| Error::new(ErrorKind::InvalidInput, e.to_string()))?;
     let query = Query::query(name, query_type);
     let mut msg = Message::new();
     msg.add_query(query)
-        .set_id(StdRng::from_entropy().gen())
+        .set_id(rand::Rng::random::<u16>(&mut rand::rng()))
         .set_op_code(OpCode::Query)
         .set_message_type(MessageType::Query)
         .set_recursion_desired(true);
