@@ -43,7 +43,7 @@ jobs:
 
     runs-on: ${{ matrix.host_os }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Prepare
         shell: bash
