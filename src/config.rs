@@ -16,7 +16,7 @@ pub struct Config {
     /// SOCKS5 URL in the form socks5://[username[:password]@]host:port,
     /// Username and password are encoded in percent encoding. For example:
     /// socks5://myname:pass%40word@127.0.0.1:1080
-    #[arg(short, long, value_parser = |s: &str| ArgProxy::try_from(s), value_name = "URL")]
+    #[arg(short, long, value_parser = |s: &str| ArgProxy::try_from(s), value_name = "URL", default_value = "socks5://127.0.0.1:1080")]
     pub socks5_settings: ArgProxy,
 
     /// Force to use TCP to proxy DNS query
