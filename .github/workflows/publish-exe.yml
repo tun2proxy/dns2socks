@@ -44,6 +44,7 @@ jobs:
     runs-on: ${{ matrix.host_os }}
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: Prepare
         shell: bash

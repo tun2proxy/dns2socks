@@ -16,6 +16,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
     - name: rustfmt
       run: |
         rustc --version
@@ -34,6 +35,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
     - name: Install cargo ndk and rust compiler for android target
       if: ${{ !cancelled() }}
       run: |

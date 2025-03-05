@@ -1,4 +1,4 @@
-use dns2socks::{main_entry, Config};
+use dns2socks::{Config, main_entry};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {

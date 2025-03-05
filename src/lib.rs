@@ -7,9 +7,8 @@ mod dump_logger;
 use hickory_proto::op::{Message, Query};
 use moka::future::Cache;
 use socks5_impl::{
-    client,
+    Error, Result, client,
     protocol::{Address, UserKey},
-    Error, Result,
 };
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{

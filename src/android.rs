@@ -1,10 +1,10 @@
 #![cfg(target_os = "android")]
 
-use crate::{main_entry, ArgProxy, ArgVerbosity, Config};
+use crate::{ArgProxy, ArgVerbosity, Config, main_entry};
 use jni::{
+    JNIEnv,
     objects::{JClass, JString},
     sys::{jboolean, jint},
-    JNIEnv,
 };
 
 static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> = std::sync::Mutex::new(None);
@@ -20,7 +20,7 @@ static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> =
 /// - cache_records: whether to cache dns records, true or false, default is false
 /// - verbosity: the verbosity level, see ArgVerbosity enum, default is ArgVerbosity::Info
 /// - timeout: the timeout in seconds, default is 5
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
     mut env: JNIEnv,
     _clazz: JClass,
@@ -99,7 +99,7 @@ pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
 /// # Safety
 ///
 /// Shutdown dns2socks
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_stop(_env: JNIEnv, _: JClass) -> jint {
     if let Ok(mut lock) = TUN_QUIT.lock() {
         if let Some(shutdown_token) = lock.take() {
