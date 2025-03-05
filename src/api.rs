@@ -9,9 +9,7 @@ static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> =
 /// Parameters:
 /// - listen_addr: the listen address, e.g. "0.0.0.0:53", or null to use the default value
 /// - dns_remote_server: the dns remote server, e.g. "8.8.8.8:53", or null to use the default value
-/// - socks5_server: the socks5 server, e.g. "127.0.0.1:1080", or null to use the default value
-/// - username: the username for socks5 authentication, or null to use the default value
-/// - password: the password for socks5 authentication, or null to use the default value
+/// - socks5_settings: the socks5 server, e.g. "socks5://[username[:password]@]host:port", or null to use the default value
 /// - force_tcp: whether to force tcp, true or false, default is false
 /// - cache_records: whether to cache dns records, true or false, default is false
 /// - verbosity: the verbosity level, see ArgVerbosity enum, default is ArgVerbosity::Info
@@ -20,9 +18,7 @@ static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> =
 pub unsafe extern "C" fn dns2socks_start(
     listen_addr: *const c_char,
     dns_remote_server: *const c_char,
-    socks5_server: *const c_char,
-    username: *const c_char,
-    password: *const c_char,
+    socks5_settings: *const c_char,
     force_tcp: bool,
     cache_records: bool,
     verbosity: ArgVerbosity,
@@ -59,17 +55,9 @@ pub unsafe extern "C" fn dns2socks_start(
         let dns_remote_server = std::ffi::CStr::from_ptr(dns_remote_server).to_str().unwrap();
         config.dns_remote_server(dns_remote_server.parse().unwrap());
     }
-    if !socks5_server.is_null() {
-        let socks5_server = std::ffi::CStr::from_ptr(socks5_server).to_str().unwrap();
-        config.socks5_server(socks5_server.parse().unwrap());
-    }
-    if !username.is_null() {
-        let username = std::ffi::CStr::from_ptr(username).to_str().unwrap().to_string();
-        config.username(Some(username));
-    }
-    if !password.is_null() {
-        let password = std::ffi::CStr::from_ptr(password).to_str().unwrap().to_string();
-        config.password(Some(password));
+    if !socks5_settings.is_null() {
+        let socks5_settings = std::ffi::CStr::from_ptr(socks5_settings).to_str().unwrap();
+        config.socks5_settings(crate::config::ArgProxy::try_from(socks5_settings).unwrap());
     }
 
     let main_loop = async move {

@@ -19,17 +19,14 @@ use tokio::{
 
 pub use ::tokio_util::sync::CancellationToken;
 pub use api::{dns2socks_start, dns2socks_stop};
-pub use config::{ArgVerbosity, Config};
+pub use config::{ArgProxy, ArgVerbosity, Config, ProxyType};
 pub use dump_logger::dns2socks_set_log_callback;
 
 const MAX_BUFFER_SIZE: usize = 4096;
 
 pub async fn main_entry(config: Config, shutdown_token: tokio_util::sync::CancellationToken) -> Result<()> {
     log::info!("Starting DNS2Socks listening on {}...", config.listen_addr);
-    let user_key = match (&config.username, &config.password) {
-        (Some(username), password) => Some(UserKey::new(username, password.clone().unwrap_or_default())),
-        _ => None,
-    };
+    let user_key = config.socks5_settings.credentials.clone();
 
     let timeout = Duration::from_secs(config.timeout);
 
@@ -114,7 +111,7 @@ async fn udp_incoming_handler(
         }
     }
 
-    let proxy_addr = opt.socks5_server;
+    let proxy_addr = opt.socks5_settings.addr;
     let dest_addr = opt.dns_remote_server;
 
     let data = if opt.force_tcp {
@@ -191,7 +188,7 @@ async fn handle_tcp_incoming(
         }
     }
 
-    let proxy_addr = opt.socks5_server;
+    let proxy_addr = opt.socks5_settings.addr;
     let target_server = opt.dns_remote_server;
     let buf = tcp_via_socks5_server(proxy_addr, target_server, auth, &buf[..n], timeout).await?;
 

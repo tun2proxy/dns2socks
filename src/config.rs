@@ -1,4 +1,5 @@
-use std::net::SocketAddr;
+use socks5_impl::protocol::UserKey;
+use std::net::{SocketAddr, ToSocketAddrs as _};
 
 /// Proxy server to routing DNS query to SOCKS5 server
 #[derive(clap::Parser, Debug, Clone, PartialEq, Eq)]
@@ -12,17 +13,11 @@ pub struct Config {
     #[clap(short, long, value_name = "IP:port", default_value = "8.8.8.8:53")]
     pub dns_remote_server: SocketAddr,
 
-    /// SOCKS5 proxy server address
-    #[clap(short, long, value_name = "IP:port", default_value = "127.0.0.1:1080")]
-    pub socks5_server: SocketAddr,
-
-    /// User name for SOCKS5 authentication
-    #[clap(short, long, value_name = "user name")]
-    pub username: Option<String>,
-
-    /// Password for SOCKS5 authentication
-    #[clap(short, long, value_name = "password")]
-    pub password: Option<String>,
+    /// SOCKS5 URL in the form socks5://[username[:password]@]host:port,
+    /// Username and password are encoded in percent encoding. For example:
+    /// socks5://myname:pass%40word@127.0.0.1:1080
+    #[arg(short, long, value_parser = |s: &str| ArgProxy::try_from(s), value_name = "URL")]
+    pub socks5_settings: ArgProxy,
 
     /// Force to use TCP to proxy DNS query
     #[clap(short, long)]
@@ -46,9 +41,7 @@ impl Default for Config {
         Config {
             listen_addr: "0.0.0.0:53".parse().unwrap(),
             dns_remote_server: "8.8.8.8:53".parse().unwrap(),
-            socks5_server: "127.0.0.1:1080".parse().unwrap(),
-            username: None,
-            password: None,
+            socks5_settings: ArgProxy::default(),
             force_tcp: false,
             cache_records: false,
             verbosity: ArgVerbosity::default(),
@@ -72,18 +65,8 @@ impl Config {
         self
     }
 
-    pub fn socks5_server(&mut self, socks5_server: SocketAddr) -> &mut Self {
-        self.socks5_server = socks5_server;
-        self
-    }
-
-    pub fn username(&mut self, username: Option<String>) -> &mut Self {
-        self.username = username;
-        self
-    }
-
-    pub fn password(&mut self, password: Option<String>) -> &mut Self {
-        self.password = password;
+    pub fn socks5_settings(&mut self, socks5_settings: ArgProxy) -> &mut Self {
+        self.socks5_settings = socks5_settings;
         self
     }
 
@@ -170,6 +153,106 @@ impl TryFrom<i32> for ArgVerbosity {
             4 => Ok(ArgVerbosity::Debug),
             5 => Ok(ArgVerbosity::Trace),
             _ => Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid verbosity level")),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ArgProxy {
+    pub proxy_type: ProxyType,
+    pub addr: SocketAddr,
+    pub credentials: Option<UserKey>,
+}
+
+impl Default for ArgProxy {
+    fn default() -> Self {
+        ArgProxy {
+            proxy_type: ProxyType::Socks5,
+            addr: "127.0.0.1:1080".parse().unwrap(),
+            credentials: None,
+        }
+    }
+}
+
+impl std::fmt::Display for ArgProxy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let auth = match &self.credentials {
+            Some(creds) => format!("{}", creds),
+            None => "".to_owned(),
+        };
+        if auth.is_empty() {
+            write!(f, "{}://{}", &self.proxy_type, &self.addr)
+        } else {
+            write!(f, "{}://{}@{}", &self.proxy_type, auth, &self.addr)
+        }
+    }
+}
+
+impl TryFrom<&str> for ArgProxy {
+    type Error = std::io::Error;
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        use std::io::{Error, ErrorKind::InvalidData};
+        let e = format!("`{s}` is not a valid proxy URL");
+        let url = url::Url::parse(s).map_err(|_| Error::new(InvalidData, e))?;
+        let e = format!("`{s}` does not contain a host");
+        let host = url.host_str().ok_or(Error::new(InvalidData, e))?;
+
+        let e = format!("`{s}` does not contain a port");
+        let port = url.port_or_known_default().ok_or(Error::new(InvalidData, e))?;
+
+        let e2 = format!("`{host}` does not resolve to a usable IP address");
+        let addr = (host, port).to_socket_addrs()?.next().ok_or(Error::new(InvalidData, e2))?;
+
+        let credentials = if url.username() == "" && url.password().is_none() {
+            None
+        } else {
+            let username = percent_encoding::percent_decode(url.username().as_bytes())
+                .decode_utf8()
+                .map_err(|e| Error::new(InvalidData, e))?;
+            let password = percent_encoding::percent_decode(url.password().unwrap_or("").as_bytes())
+                .decode_utf8()
+                .map_err(|e| Error::new(InvalidData, e))?;
+            Some(UserKey::new(username, password))
+        };
+
+        let proxy_type = url.scheme().to_ascii_lowercase().as_str().try_into()?;
+
+        Ok(ArgProxy {
+            proxy_type,
+            addr,
+            credentials,
+        })
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
+pub enum ProxyType {
+    // Http = 0,
+    // Socks4,
+    #[default]
+    Socks5,
+}
+
+impl TryFrom<&str> for ProxyType {
+    type Error = std::io::Error;
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        use std::io::{Error, ErrorKind::InvalidData};
+        match value {
+            // "http" => Ok(ProxyType::Http),
+            // "socks4" => Ok(ProxyType::Socks4),
+            "socks5" => Ok(ProxyType::Socks5),
+            scheme => Err(Error::new(InvalidData, format!("`{scheme}` is an invalid proxy type"))),
+        }
+    }
+}
+
+impl std::fmt::Display for ProxyType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            // ProxyType::Http => write!(f, "http"),
+            // ProxyType::Socks4 => write!(f, "socks4"),
+            ProxyType::Socks5 => write!(f, "socks5"),
         }
     }
 }

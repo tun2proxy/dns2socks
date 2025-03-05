@@ -20,12 +20,14 @@ env_logger = "0.11"
 hickory-proto = "0.24"
 log = "0.4"
 moka = { version = "0.12", default-features = false, features = ["future"] }
+percent-encoding = "2"
 rand = "0.9"
 socks5-impl = { version = "0.6", default-features = false, features = [
     "client",
 ] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7"
+url = "2"
 
 [target.'cfg(target_os="android")'.dependencies]
 android_logger = "0.14"

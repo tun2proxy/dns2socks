@@ -1,6 +1,6 @@
 #![cfg(target_os = "android")]
 
-use crate::{main_entry, ArgVerbosity, Config};
+use crate::{main_entry, ArgProxy, ArgVerbosity, Config};
 use jni::{
     objects::{JClass, JString},
     sys::{jboolean, jint},
@@ -15,9 +15,7 @@ static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> =
 /// Parameters:
 /// - listen_addr: the listen address, e.g. "172.19.0.1:53", or null to use the default value
 /// - dns_remote_server: the dns remote server, e.g. "8.8.8.8:53", or null to use the default value
-/// - socks5_server: the socks5 server, e.g. "127.0.0.1:1080", or null to use the default value
-/// - username: the username for socks5 authentication, or null to use the default value
-/// - password: the password for socks5 authentication, or null to use the default value
+/// - socks5_settings: the socks5 server, e.g. "socks5://[username[:password]@]host:port", or null to use the default value
 /// - force_tcp: whether to force tcp, true or false, default is false
 /// - cache_records: whether to cache dns records, true or false, default is false
 /// - verbosity: the verbosity level, see ArgVerbosity enum, default is ArgVerbosity::Info
@@ -28,9 +26,7 @@ pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
     _clazz: JClass,
     listen_addr: JString,
     dns_remote_server: JString,
-    socks5_server: JString,
-    username: JString,
-    password: JString,
+    socks5_settings: JString,
     force_tcp: jboolean,
     cache_records: jboolean,
     verbosity: jint,
@@ -54,17 +50,9 @@ pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
         Ok(addr) => addr,
         Err(_e) => "8.8.8.8:53".to_string(),
     };
-    let socks5_server = match get_java_string(&mut env, &socks5_server) {
+    let socks5_settings = match get_java_string(&mut env, &socks5_settings) {
         Ok(addr) => addr,
-        Err(_e) => "127.0.0.1:1080".to_string(),
-    };
-    let username = match get_java_string(&mut env, &username) {
-        Ok(addr) => Some(addr),
-        Err(_e) => None,
-    };
-    let password = match get_java_string(&mut env, &password) {
-        Ok(addr) => Some(addr),
-        Err(_e) => None,
+        Err(_e) => "socks5://127.0.0.1:1080".to_string(),
     };
     let force_tcp = force_tcp != 0;
     let cache_records = cache_records != 0;
@@ -88,9 +76,7 @@ pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
             .cache_records(cache_records)
             .listen_addr(listen_addr.parse()?)
             .dns_remote_server(dns_remote_server.parse()?)
-            .socks5_server(socks5_server.parse()?)
-            .username(username)
-            .password(password);
+            .socks5_settings(ArgProxy::try_from(socks5_settings.as_str())?);
 
         if let Err(err) = main_entry(cfg, shutdown_token).await {
             log::error!("main loop error: {}", err);
