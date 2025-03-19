@@ -31,7 +31,7 @@ pub fn extract_ipaddr_from_dns_message(message: &Message) -> std::io::Result<IpA
     }
     let mut cname = None;
     for answer in message.answers() {
-        match answer.data().ok_or(Error::new(ErrorKind::InvalidData, "No answer data"))? {
+        match answer.data() {
             RData::A(addr) => {
                 return Ok(IpAddr::V4((*addr).into()));
             }
