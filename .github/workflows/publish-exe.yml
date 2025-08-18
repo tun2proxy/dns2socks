@@ -9,6 +9,7 @@ jobs:
   build_publish:
     name: Publishing Tasks
     strategy:
+      fail-fast: false
       matrix:
         target:
           - x86_64-unknown-linux-gnu
@@ -47,16 +48,18 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       - name: Prepare
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
           cargo install cbindgen
           mkdir mypubdir4
           rustup target add ${{ matrix.target }}
           if [[ "${{ matrix.host_os }}" == "ubuntu-latest" ]]; then
-            sudo .github/workflows/install-cross.sh
+            cargo install cross --git https://github.com/cross-rs/cross.git --rev e281947
           fi
 
       - name: Build
+        if: ${{ !cancelled() }}
         shell: bash
         run: |
           if [[ "${{ matrix.host_os }}" == "ubuntu-latest" ]]; then
@@ -67,9 +70,9 @@ jobs:
           cbindgen --config cbindgen.toml -o target/dns2socks.h
           if [[ "${{ matrix.host_os }}" == "windows-latest" ]]; then
             powershell -Command "(Get-Item README.md).LastWriteTime = Get-Date"
-            powershell Compress-Archive -Path target/${{ matrix.target }}/release/dns2socks.exe, README.md, target/dns2socks.h, target/${{ matrix.target }}/release/dns2socks.dll -DestinationPath mypubdir4/dns2socks-${{ matrix.target }}.zip
+            powershell Compress-Archive -Path target/${{ matrix.target }}/release/dns2socks.exe, README.md, target/dns2socks.h, target/${{ matrix.target }}/release/dns2socks_core.dll -DestinationPath mypubdir4/dns2socks-${{ matrix.target }}.zip
           elif [[ "${{ matrix.host_os }}" == "macos-latest" ]]; then
-            zip -j mypubdir4/dns2socks-${{ matrix.target }}.zip target/${{ matrix.target }}/release/dns2socks README.md target/dns2socks.h target/${{ matrix.target }}/release/libdns2socks.dylib
+            zip -j mypubdir4/dns2socks-${{ matrix.target }}.zip target/${{ matrix.target }}/release/dns2socks README.md target/dns2socks.h target/${{ matrix.target }}/release/libdns2socks_core.dylib
             if [[ "${{ matrix.target }}" == "x86_64-apple-darwin" ]]; then
               ./build-aarch64-apple-ios.sh
               zip -r mypubdir4/dns2socks-aarch64-apple-ios-xcframework.zip ./dns2socks.xcframework/
@@ -77,13 +80,17 @@ jobs:
               zip -r mypubdir4/dns2socks-apple-xcframework.zip ./dns2socks.xcframework/
             fi
           elif [[ "${{ matrix.host_os }}" == "ubuntu-latest" ]]; then
-            zip -j mypubdir4/dns2socks-${{ matrix.target }}.zip target/${{ matrix.target }}/release/dns2socks README.md target/dns2socks.h target/${{ matrix.target }}/release/libdns2socks.so
+            zip -j mypubdir4/dns2socks-${{ matrix.target }}.zip target/${{ matrix.target }}/release/dns2socks README.md target/dns2socks.h target/${{ matrix.target }}/release/libdns2socks_core.so
           fi
 
       - name: Publish
+        if: ${{ !cancelled() }}
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: mypubdir4/*
 
+      - name: Abort on error
+        if: ${{ failure() }}
+        run: echo "Publish job failed" && false

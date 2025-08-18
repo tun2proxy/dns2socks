@@ -1,4 +1,4 @@
-use dns2socks::{Config, main_entry};
+use dns2socks_core::{Config, LIB_NAME, main_entry};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -6,7 +6,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
 
     dotenvy::dotenv().ok();
 
-    let default = format!("{}={:?}", module_path!(), config.verbosity);
+    let default = format!("{}={:?},{LIB_NAME}={:?}", module_path!(), config.verbosity, config.verbosity);
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(default)).init();
 
     let shutdown_token = tokio_util::sync::CancellationToken::new();

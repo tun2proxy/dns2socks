@@ -9,6 +9,7 @@ description = "Convert DNS requests to SOCKS5 proxy."
 readme = "README.md"
 
 [lib]
+name = "dns2socks_core"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]

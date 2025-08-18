@@ -1,6 +1,6 @@
 #![cfg(target_os = "android")]
 
-use crate::{ArgProxy, ArgVerbosity, Config, main_entry};
+use crate::{ArgProxy, ArgVerbosity, Config, LIB_NAME, main_entry};
 use jni::{
     JNIEnv,
     objects::{JClass, JString},
@@ -33,7 +33,7 @@ pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
     timeout: jint,
 ) -> jint {
     let verbosity: ArgVerbosity = verbosity.try_into().unwrap_or_default();
-    let filter_str = &format!("off,dns2socks={verbosity}");
+    let filter_str = &format!("off,{LIB_NAME}={verbosity}");
     let filter = android_logger::FilterBuilder::new().parse(filter_str).build();
     android_logger::init_once(
         android_logger::Config::default()

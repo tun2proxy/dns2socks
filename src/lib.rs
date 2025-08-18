@@ -21,6 +21,8 @@ pub use api::{dns2socks_start, dns2socks_stop};
 pub use config::{ArgProxy, ArgVerbosity, Config, ProxyType};
 pub use dump_logger::dns2socks_set_log_callback;
 
+pub const LIB_NAME: &str = "dns2socks_core";
+
 const MAX_BUFFER_SIZE: usize = 4096;
 
 pub async fn main_entry(config: Config, shutdown_token: tokio_util::sync::CancellationToken) -> Result<()> {

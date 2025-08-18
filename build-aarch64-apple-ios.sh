@@ -22,5 +22,5 @@ EOF
 echo "Creating XCFramework"
 rm -rf ./dns2socks.xcframework
 xcodebuild -create-xcframework \
-    -library ./target/aarch64-apple-ios/release/libdns2socks.a -headers ./target/include/ \
+    -library ./target/aarch64-apple-ios/release/libdns2socks_core.a -headers ./target/include/ \
     -output ./dns2socks.xcframework

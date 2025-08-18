@@ -6,10 +6,11 @@ include = [
     "dns2socks_start",
     "dns2socks_stop",
     "dns2socks_set_log_callback",
-    "Java_com_github_shadowsocks_bg_Dns2socks_start",
-    "Java_com_github_shadowsocks_bg_Dns2socks_stop",
 ]
-exclude = []
+exclude = [
+    "Java_com_github_shadowsocks_bg_Dns2socks_start",
+    "Java_com_github_shadowsocks_bg_Dns2socks_stop",    
+]
 
 [export.rename]
 "ArgVerbosity" = "Dns2socksVerbosity"

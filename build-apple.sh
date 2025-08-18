@@ -36,20 +36,20 @@ EOF
 echo "lipo..."
 echo "Simulator"
 lipo -create \
-    target/aarch64-apple-ios-sim/release/libdns2socks.a \
-    target/x86_64-apple-ios/release/libdns2socks.a \
+    target/aarch64-apple-ios-sim/release/libdns2socks_core.a \
+    target/x86_64-apple-ios/release/libdns2socks_core.a \
     -output ./target/libdns2socks-ios-sim.a
 
 echo "MacOS"
 lipo -create \
-    target/aarch64-apple-darwin/release/libdns2socks.a \
-    target/x86_64-apple-darwin/release/libdns2socks.a \
+    target/aarch64-apple-darwin/release/libdns2socks_core.a \
+    target/x86_64-apple-darwin/release/libdns2socks_core.a \
     -output ./target/libdns2socks-macos.a
 
 echo "Creating XCFramework"
 rm -rf ./dns2socks.xcframework
 xcodebuild -create-xcframework \
-    -library ./target/aarch64-apple-ios/release/libdns2socks.a -headers ./target/include/ \
+    -library ./target/aarch64-apple-ios/release/libdns2socks_core.a -headers ./target/include/ \
     -library ./target/libdns2socks-ios-sim.a -headers ./target/include/ \
     -library ./target/libdns2socks-macos.a -headers ./target/include/ \
     -output ./dns2socks.xcframework
