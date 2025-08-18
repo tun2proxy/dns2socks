@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
     - name: rustfmt
       run: |
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - uses: dtolnay/rust-toolchain@stable
     - name: Install cargo ndk and rust compiler for android target
       if: ${{ !cancelled() }}
