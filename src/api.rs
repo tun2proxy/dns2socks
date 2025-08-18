@@ -68,15 +68,13 @@ pub unsafe extern "C" fn dns2socks_start(
         Ok(())
     };
 
-    let exit_code = match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
+    match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
         Err(_e) => -3,
         Ok(rt) => match rt.block_on(main_loop) {
             Ok(_) => 0,
             Err(_e) => -4,
         },
-    };
-
-    exit_code
+    }
 }
 
 /// # Safety
@@ -84,11 +82,11 @@ pub unsafe extern "C" fn dns2socks_start(
 /// Shutdown the dns2socks component.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dns2socks_stop() -> c_int {
-    if let Ok(mut lock) = TUN_QUIT.lock() {
-        if let Some(shutdown_token) = lock.take() {
-            shutdown_token.cancel();
-            return 0;
-        }
+    if let Ok(mut lock) = TUN_QUIT.lock()
+        && let Some(shutdown_token) = lock.take()
+    {
+        shutdown_token.cancel();
+        return 0;
     }
     -1
 }

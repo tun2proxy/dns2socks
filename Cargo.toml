@@ -14,7 +14,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [dependencies]
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "wrap_help"] }
-ctrlc2 = { version = "3", features = ["tokio", "termination"] }
+ctrlc2 = { version = "3", features = ["async", "termination"] }
 dotenvy = "0.15"
 env_logger = "0.11"
 hickory-proto = "0.25"

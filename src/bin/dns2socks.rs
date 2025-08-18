@@ -19,15 +19,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>
         }
     });
 
-    ctrlc2::set_async_handler(async move {
+    let async_ctrlc = ctrlc2::AsyncCtrlC::new(move || {
         log::info!("Ctrl-C received, exiting...");
         shutdown_token.cancel();
-    })
-    .await;
+        true
+    })?;
 
     if let Err(err) = join_handle.await {
         log::error!("main_entry error {}", err);
     }
+
+    tokio::time::timeout(std::time::Duration::from_millis(100), async_ctrlc).await??;
 
     Ok(())
 }

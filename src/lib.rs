@@ -101,13 +101,13 @@ async fn udp_incoming_handler(
     let message = dns::parse_data_to_dns_message(&buf, false)?;
     let domain = dns::extract_domain_from_dns_message(&message)?;
 
-    if opt.cache_records {
-        if let Some(cached_message) = dns_cache_get_message(&cache, &message).await {
-            let data = cached_message.to_vec().map_err(|e| e.to_string())?;
-            listener.send_to(&data, &src).await?;
-            log_dns_message("DNS query via UDP cache hit", &domain, &cached_message);
-            return Ok(());
-        }
+    if opt.cache_records
+        && let Some(cached_message) = dns_cache_get_message(&cache, &message).await
+    {
+        let data = cached_message.to_vec().map_err(|e| e.to_string())?;
+        listener.send_to(&data, &src).await?;
+        log_dns_message("DNS query via UDP cache hit", &domain, &cached_message);
+        return Ok(());
     }
 
     let proxy_addr = opt.socks5_settings.addr;
@@ -176,15 +176,15 @@ async fn handle_tcp_incoming(
     let message = dns::parse_data_to_dns_message(&buf[..n], true)?;
     let domain = dns::extract_domain_from_dns_message(&message)?;
 
-    if opt.cache_records {
-        if let Some(cached_message) = dns_cache_get_message(&cache, &message).await {
-            let data = cached_message.to_vec().map_err(|e| e.to_string())?;
-            let len = u16::try_from(data.len()).map_err(|e| e.to_string())?.to_be_bytes().to_vec();
-            let data = [len, data].concat();
-            incoming.write_all(&data).await?;
-            log_dns_message("DNS query via TCP cache hit", &domain, &cached_message);
-            return Ok(());
-        }
+    if opt.cache_records
+        && let Some(cached_message) = dns_cache_get_message(&cache, &message).await
+    {
+        let data = cached_message.to_vec().map_err(|e| e.to_string())?;
+        let len = u16::try_from(data.len()).map_err(|e| e.to_string())?.to_be_bytes().to_vec();
+        let data = [len, data].concat();
+        incoming.write_all(&data).await?;
+        log_dns_message("DNS query via TCP cache hit", &domain, &cached_message);
+        return Ok(());
     }
 
     let proxy_addr = opt.socks5_settings.addr;
