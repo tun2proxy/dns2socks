@@ -62,7 +62,9 @@ impl DumpLogger {
             record.module_path().unwrap_or(""),
             record.args()
         );
-        let c_msg = std::ffi::CString::new(msg).unwrap();
+        let Ok(c_msg) = std::ffi::CString::new(msg) else {
+            return;
+        };
         let ptr = c_msg.as_ptr();
         if let Some(Some(cb)) = DUMP_CALLBACK.get() {
             unsafe { cb.clone().call(record.level().into(), ptr) };

@@ -48,16 +48,31 @@ pub unsafe extern "C" fn dns2socks_start(
         .force_tcp(force_tcp)
         .cache_records(cache_records);
     if !listen_addr.is_null() {
-        let listen_addr = unsafe { std::ffi::CStr::from_ptr(listen_addr) }.to_str().unwrap();
-        config.listen_addr(listen_addr.parse().unwrap());
+        let Ok(listen_addr) = unsafe { std::ffi::CStr::from_ptr(listen_addr) }.to_str() else {
+            return -3;
+        };
+        let Ok(addr) = listen_addr.parse() else {
+            return -4;
+        };
+        config.listen_addr(addr);
     }
     if !dns_remote_server.is_null() {
-        let dns_remote_server = unsafe { std::ffi::CStr::from_ptr(dns_remote_server) }.to_str().unwrap();
-        config.dns_remote_server(dns_remote_server.parse().unwrap());
+        let Ok(dns_remote_server) = unsafe { std::ffi::CStr::from_ptr(dns_remote_server) }.to_str() else {
+            return -5;
+        };
+        let Ok(addr) = dns_remote_server.parse() else {
+            return -6;
+        };
+        config.dns_remote_server(addr);
     }
     if !socks5_settings.is_null() {
-        let socks5_settings = unsafe { std::ffi::CStr::from_ptr(socks5_settings) }.to_str().unwrap();
-        config.socks5_settings(crate::config::ArgProxy::try_from(socks5_settings).unwrap());
+        let Ok(socks5_settings) = unsafe { std::ffi::CStr::from_ptr(socks5_settings) }.to_str() else {
+            return -7;
+        };
+        let Ok(proxy_settings) = crate::config::ArgProxy::try_from(socks5_settings) else {
+            return -8;
+        };
+        config.socks5_settings(proxy_settings);
     }
 
     let main_loop = async move {
@@ -69,10 +84,10 @@ pub unsafe extern "C" fn dns2socks_start(
     };
 
     match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
-        Err(_e) => -3,
+        Err(_e) => -9,
         Ok(rt) => match rt.block_on(main_loop) {
             Ok(_) => 0,
-            Err(_e) => -4,
+            Err(_e) => -10,
         },
     }
 }

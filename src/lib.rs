@@ -173,7 +173,7 @@ async fn handle_tcp_incoming(
     timeout: Duration,
 ) -> Result<()> {
     let mut buf = [0u8; MAX_BUFFER_SIZE];
-    let n = incoming.read(&mut buf).await?;
+    let n = tokio::time::timeout(timeout, incoming.read(&mut buf)).await??;
 
     let message = dns::parse_data_to_dns_message(&buf[..n], true)?;
     let domain = dns::extract_domain_from_dns_message(&message)?;
