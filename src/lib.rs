@@ -191,11 +191,11 @@ async fn handle_tcp_incoming(
 
     let proxy_addr = opt.socks5_settings.addr;
     let target_server = opt.dns_remote_server;
-    let buf = tcp_via_socks5_server(proxy_addr, target_server, auth, &buf[..n], timeout).await?;
+    let response_buf = tcp_via_socks5_server(proxy_addr, target_server, auth, &buf[..n], timeout).await?;
 
-    incoming.write_all(&buf[..n]).await?;
+    incoming.write_all(&response_buf).await?;
 
-    let message = dns::parse_data_to_dns_message(&buf[..n], true)?;
+    let message = dns::parse_data_to_dns_message(&response_buf, true)?;
     log_dns_message("DNS query via TCP", &domain, &message);
 
     if opt.cache_records {
