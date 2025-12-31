@@ -11,7 +11,7 @@ pub fn build_dns_query(domain: &str, query_type: RecordType, used_by_tcp: bool) 
     let query = Query::query(name, query_type);
     let mut msg = Message::new();
     msg.add_query(query)
-        .set_id(rand::Rng::random::<u16>(&mut rand::rng()))
+        .set_id(rand::random::<u16>())
         .set_op_code(OpCode::Query)
         .set_message_type(MessageType::Query)
         .set_recursion_desired(true);

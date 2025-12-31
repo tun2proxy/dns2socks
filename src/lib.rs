@@ -223,9 +223,19 @@ where
     stream.write_all(buf).await?;
     stream.flush().await?;
 
-    let mut buf = vec![0; MAX_BUFFER_SIZE];
-    let n = tokio::time::timeout(timeout, stream.read(&mut buf)).await??;
-    Ok(buf[..n].to_vec())
+    // Read the length prefix (2 bytes)
+    let mut len_buf = [0u8; 2];
+    tokio::time::timeout(timeout, stream.read_exact(&mut len_buf)).await??;
+    let len = u16::from_be_bytes(len_buf) as usize;
+
+    // Read the DNS message
+    let mut msg_buf = vec![0u8; len];
+    tokio::time::timeout(timeout, stream.read_exact(&mut msg_buf)).await??;
+
+    // Prepend the length prefix to match the expected format
+    let mut response_buf = len_buf.to_vec();
+    response_buf.extend(msg_buf);
+    Ok(response_buf)
 }
 
 fn log_dns_message(prefix: &str, domain: &str, message: &Message) {
