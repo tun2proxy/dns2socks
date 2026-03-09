@@ -2,7 +2,7 @@
 
 use crate::{ArgProxy, ArgVerbosity, Config, LIB_NAME, main_entry};
 use jni::{
-    JNIEnv,
+    Env, EnvUnowned,
     objects::{JClass, JString},
     sys::{jboolean, jint},
 };
@@ -22,11 +22,11 @@ static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> =
 /// - timeout: the timeout in seconds, default is 5
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
-    mut env: JNIEnv,
-    _clazz: JClass,
-    listen_addr: JString,
-    dns_remote_server: JString,
-    socks5_settings: JString,
+    mut env: EnvUnowned<'_>,
+    _clazz: JClass<'_>,
+    listen_addr: JString<'_>,
+    dns_remote_server: JString<'_>,
+    socks5_settings: JString<'_>,
     force_tcp: jboolean,
     cache_records: jboolean,
     verbosity: jint,
@@ -42,63 +42,64 @@ pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
             .with_filter(filter),
     );
 
-    let listen_addr = match get_java_string(&mut env, &listen_addr) {
-        Ok(addr) => addr,
-        Err(_e) => "0.0.0.0:53".to_string(),
-    };
-    let dns_remote_server = match get_java_string(&mut env, &dns_remote_server) {
-        Ok(addr) => addr,
-        Err(_e) => "8.8.8.8:53".to_string(),
-    };
-    let socks5_settings = match get_java_string(&mut env, &socks5_settings) {
-        Ok(addr) => addr,
-        Err(_e) => "socks5://127.0.0.1:1080".to_string(),
-    };
-    let force_tcp = force_tcp != 0;
-    let cache_records = cache_records != 0;
-    let timeout = if timeout < 3 { 5 } else { timeout as u64 };
+    env.with_env(|env: &mut Env| -> Result<jint, jni::errors::Error> {
+        let listen_addr = match get_java_string(env, &listen_addr) {
+            Ok(addr) => addr,
+            Err(_e) => "0.0.0.0:53".to_string(),
+        };
+        let dns_remote_server = match get_java_string(env, &dns_remote_server) {
+            Ok(addr) => addr,
+            Err(_e) => "8.8.8.8:53".to_string(),
+        };
+        let socks5_settings = match get_java_string(env, &socks5_settings) {
+            Ok(addr) => addr,
+            Err(_e) => "socks5://127.0.0.1:1080".to_string(),
+        };
+        let timeout = if timeout < 3 { 5 } else { timeout as u64 };
 
-    let shutdown_token = tokio_util::sync::CancellationToken::new();
-    if let Ok(mut lock) = TUN_QUIT.lock() {
-        if lock.is_some() {
-            return -1;
+        let shutdown_token = tokio_util::sync::CancellationToken::new();
+        if let Ok(mut lock) = TUN_QUIT.lock() {
+            if lock.is_some() {
+                return Ok::<jint, jni::errors::Error>(-1);
+            }
+            *lock = Some(shutdown_token.clone());
+        } else {
+            return Ok::<jint, jni::errors::Error>(-2);
         }
-        *lock = Some(shutdown_token.clone());
-    } else {
-        return -2;
-    }
 
-    let main_loop = async move {
-        let mut cfg = Config::default();
-        cfg.verbosity(verbosity)
-            .timeout(timeout)
-            .force_tcp(force_tcp)
-            .cache_records(cache_records)
-            .listen_addr(listen_addr.parse()?)
-            .dns_remote_server(dns_remote_server.parse()?)
-            .socks5_settings(ArgProxy::try_from(socks5_settings.as_str())?);
+        let main_loop = async move {
+            let mut cfg = Config::default();
+            cfg.verbosity(verbosity)
+                .timeout(timeout)
+                .force_tcp(force_tcp)
+                .cache_records(cache_records)
+                .listen_addr(listen_addr.parse().map_err(std::io::Error::other)?)
+                .dns_remote_server(dns_remote_server.parse()?)
+                .socks5_settings(ArgProxy::try_from(socks5_settings.as_str()).map_err(std::io::Error::other)?);
 
-        if let Err(err) = main_entry(cfg, shutdown_token).await {
-            log::error!("main loop error: {}", err);
-            return Err(err);
+            if let Err(err) = main_entry(cfg, shutdown_token).await {
+                log::error!("main loop error: {}", err);
+                return Err(err);
+            }
+            Ok(Ok::<jint, std::io::Error>(0))
+        };
+
+        match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
+            Err(_e) => Ok::<jint, jni::errors::Error>(-3),
+            Ok(rt) => match rt.block_on(main_loop) {
+                Ok(_) => Ok::<jint, jni::errors::Error>(0),
+                Err(_e) => Ok::<jint, jni::errors::Error>(-4),
+            },
         }
-        Ok(())
-    };
-
-    match tokio::runtime::Builder::new_multi_thread().enable_all().build() {
-        Err(_e) => -3,
-        Ok(rt) => match rt.block_on(main_loop) {
-            Ok(_) => 0,
-            Err(_e) => -4,
-        },
-    }
+    })
+    .resolve::<jni::errors::LogErrorAndDefault>()
 }
 
 /// # Safety
 ///
 /// Shutdown dns2socks
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_stop(_env: JNIEnv, _: JClass) -> jint {
+pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_stop(_env: EnvUnowned<'_>, _: JClass<'_>) -> jint {
     if let Ok(mut lock) = TUN_QUIT.lock()
         && let Some(shutdown_token) = lock.take()
     {
@@ -108,7 +109,6 @@ pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_stop(_env: JNI
     -1
 }
 
-fn get_java_string(env: &mut JNIEnv, string: &JString) -> std::io::Result<String> {
-    use std::io::{Error, ErrorKind::Other};
-    Ok(env.get_string(string).map_err(|e| Error::new(Other, e))?.into())
+fn get_java_string(env: &Env, string: &JString) -> std::io::Result<String> {
+    string.try_to_string(env).map_err(std::io::Error::other)
 }
