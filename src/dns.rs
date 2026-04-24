@@ -1,6 +1,6 @@
 use hickory_proto::{
-    op::{Message, ResponseCode, header::MessageType, op_code::OpCode, query::Query},
-    rr::{Name, RData, record_type::RecordType},
+    op::{Message, MessageType, OpCode, Query, ResponseCode},
+    rr::{Name, RData, RecordType},
 };
 use std::io::{Error, ErrorKind};
 use std::{net::IpAddr, str::FromStr};
@@ -9,12 +9,9 @@ use std::{net::IpAddr, str::FromStr};
 pub fn build_dns_query(domain: &str, query_type: RecordType, used_by_tcp: bool) -> std::io::Result<Vec<u8>> {
     let name = Name::from_str(domain).map_err(|e| Error::new(ErrorKind::InvalidInput, e.to_string()))?;
     let query = Query::query(name, query_type);
-    let mut msg = Message::new();
-    msg.add_query(query)
-        .set_id(rand::random::<u16>())
-        .set_op_code(OpCode::Query)
-        .set_message_type(MessageType::Query)
-        .set_recursion_desired(true);
+    let mut msg = Message::new(rand::random::<u16>(), MessageType::Query, OpCode::Query);
+    msg.add_query(query);
+    msg.metadata.recursion_desired = true;
     let mut msg_buf = msg.to_vec().map_err(|e| Error::new(ErrorKind::InvalidInput, e.to_string()))?;
     if used_by_tcp {
         let mut buf = (msg_buf.len() as u16).to_be_bytes().to_vec();
@@ -26,12 +23,12 @@ pub fn build_dns_query(domain: &str, query_type: RecordType, used_by_tcp: bool) 
 }
 
 pub fn extract_ipaddr_from_dns_message(message: &Message) -> std::io::Result<IpAddr> {
-    if message.response_code() != ResponseCode::NoError {
-        return Err(Error::new(ErrorKind::InvalidData, format!("{:?}", message.response_code())));
+    if message.metadata.response_code != ResponseCode::NoError {
+        return Err(Error::new(ErrorKind::InvalidData, format!("{:?}", message.metadata.response_code)));
     }
     let mut cname = None;
-    for answer in message.answers() {
-        match answer.data() {
+    for answer in &message.answers {
+        match &answer.data {
             RData::A(addr) => {
                 return Ok(IpAddr::V4((*addr).into()));
             }
@@ -47,12 +44,12 @@ pub fn extract_ipaddr_from_dns_message(message: &Message) -> std::io::Result<IpA
     if let Some(cname) = cname {
         return Err(Error::new(ErrorKind::InvalidData, format!("CNAME: {}", cname)));
     }
-    Err(Error::new(ErrorKind::InvalidData, format!("{:?}", message.answers())))
+    Err(Error::new(ErrorKind::InvalidData, format!("{:?}", message.answers)))
 }
 
 pub fn extract_domain_from_dns_message(message: &Message) -> std::io::Result<String> {
     let err = Error::new(ErrorKind::InvalidData, "DnsRequest no query body");
-    let query = message.queries().first().ok_or(err)?;
+    let query = message.queries.first().ok_or(err)?;
     let name = query.name().to_string();
     Ok(name)
 }

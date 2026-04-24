@@ -256,13 +256,13 @@ pub(crate) fn create_dns_cache() -> Cache<Vec<Query>, Message> {
 }
 
 pub(crate) async fn dns_cache_get_message(cache: &Cache<Vec<Query>, Message>, message: &Message) -> Option<Message> {
-    if let Some(mut cached_message) = cache.get(&message.queries().to_vec()).await {
-        cached_message.set_id(message.id());
+    if let Some(mut cached_message) = cache.get(&message.queries).await {
+        cached_message.metadata.id = message.metadata.id;
         return Some(cached_message);
     }
     None
 }
 
 pub(crate) async fn dns_cache_put_message(cache: &Cache<Vec<Query>, Message>, message: &Message) {
-    cache.insert(message.queries().to_vec(), message.clone()).await;
+    cache.insert(message.queries.clone(), message.clone()).await;
 }

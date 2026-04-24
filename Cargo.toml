@@ -13,23 +13,23 @@ name = "dns2socks_core"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
-chrono = "0.4"
-clap = { version = "4", features = ["derive", "wrap_help"] }
-ctrlc2 = { version = "3", features = ["async", "termination"] }
-dotenvy = "0.15"
-env_logger = "0.11"
-hickory-proto = "0.25"
-log = "0.4"
-moka = { version = "0.12", default-features = false, features = ["future"] }
-percent-encoding = "2"
-rand = "0.10"
-socks5-impl = { version = "0.8", default-features = false, features = [
+chrono = "0.4.44"
+clap = { version = "4.6.1", features = ["derive", "wrap_help"] }
+ctrlc2 = { version = "3.7.3", features = ["async", "termination"] }
+dotenvy = "0.15.7"
+env_logger = "0.11.10"
+hickory-proto = "0.26.0"
+log = "0.4.29"
+moka = { version = "0.12.15", default-features = false, features = ["future"] }
+percent-encoding = "2.3.2"
+rand = "0.10.1"
+socks5-impl = { version = "0.8.2", default-features = false, features = [
     "client",
 ] }
-tokio = { version = "1", features = ["full"] }
-tokio-util = "0.7"
-url = "2"
+tokio = { version = "1.52.1", features = ["full"] }
+tokio-util = "0.7.18"
+url = "2.5.8"
 
 [target.'cfg(target_os="android")'.dependencies]
-android_logger = "0.15"
-jni = { version = "0.22", default-features = false }
+android_logger = "0.15.1"
+jni = { version = "0.22.4", default-features = false }
