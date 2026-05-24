@@ -24,6 +24,17 @@ pub unsafe extern "C" fn dns2socks_start(
     verbosity: ArgVerbosity,
     timeout: i32,
 ) -> c_int {
+    struct TunQuitGuard;
+
+    impl Drop for TunQuitGuard {
+        fn drop(&mut self) {
+            if let Ok(mut lock) = TUN_QUIT.lock() {
+                *lock = None;
+            }
+        }
+    }
+
+    let _guard = TunQuitGuard;
     let shutdown_token = tokio_util::sync::CancellationToken::new();
     {
         if let Ok(mut lock) = TUN_QUIT.lock() {
@@ -40,6 +51,8 @@ pub unsafe extern "C" fn dns2socks_start(
     if let Err(err) = log::set_boxed_logger(Box::<crate::dump_logger::DumpLogger>::default()) {
         log::warn!("set logger error: {}", err);
     }
+
+    let timeout = if timeout > 0 { timeout } else { 5 };
 
     let mut config = crate::Config::default();
     config

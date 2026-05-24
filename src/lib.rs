@@ -32,24 +32,16 @@ pub async fn main_entry(config: Config, shutdown_token: tokio_util::sync::Cancel
     let timeout = Duration::from_secs(config.timeout);
 
     let cache = create_dns_cache();
-
-    fn handle_error(res: Result<Result<(), Error>, tokio::task::JoinError>, protocol: &str) {
-        match res {
-            Ok(Err(e)) => log::error!("{} error \"{}\"", protocol, e),
-            Err(e) => log::error!("{} error \"{}\"", protocol, e),
-            _ => {}
-        }
-    }
-
+    let shutdown_for_select = shutdown_token.clone();
     tokio::select! {
-        _ = shutdown_token.cancelled() => {
+        _ = shutdown_for_select.cancelled() => {
             log::info!("Shutdown received");
         },
-        res = tokio::spawn(udp_thread(config.clone(), user_key.clone(), cache.clone(), timeout)) => {
-            handle_error(res, "UDP");
+        res = udp_thread(config.clone(), user_key.clone(), cache.clone(), timeout, shutdown_token.clone()) => {
+            res?;
         },
-        res = tokio::spawn(tcp_thread(config, user_key, cache, timeout)) => {
-            handle_error(res, "TCP");
+        res = tcp_thread(config, user_key, cache, timeout, shutdown_token) => {
+            res?;
         },
     }
 
@@ -58,7 +50,13 @@ pub async fn main_entry(config: Config, shutdown_token: tokio_util::sync::Cancel
     Ok(())
 }
 
-pub(crate) async fn udp_thread(opt: Config, user_key: Option<UserKey>, cache: Cache<Vec<Query>, Message>, timeout: Duration) -> Result<()> {
+pub(crate) async fn udp_thread(
+    opt: Config,
+    user_key: Option<UserKey>,
+    cache: Cache<Vec<Query>, Message>,
+    timeout: Duration,
+    shutdown_token: tokio_util::sync::CancellationToken,
+) -> Result<()> {
     let listener = match UdpSocket::bind(&opt.listen_addr).await {
         Ok(listener) => listener,
         Err(e) => {
@@ -74,19 +72,27 @@ pub(crate) async fn udp_thread(opt: Config, user_key: Option<UserKey>, cache: Ca
         let opt = opt.clone();
         let cache = cache.clone();
         let auth = user_key.clone();
-        let block = async move {
-            let mut buf = vec![0u8; MAX_BUFFER_SIZE];
-            let (len, src) = listener.recv_from(&mut buf).await?;
-            buf.resize(len, 0);
-            tokio::spawn(async move {
-                if let Err(e) = udp_incoming_handler(listener, buf, src, opt, cache, auth, timeout).await {
-                    log::error!("DNS query via UDP incoming handler error \"{}\"", e);
+        tokio::select! {
+            _ = shutdown_token.cancelled() => {
+                log::info!("UDP shutdown received");
+                return Ok(());
+            }
+            res = async move {
+                let mut buf = vec![0u8; MAX_BUFFER_SIZE];
+                let (len, src) = listener.recv_from(&mut buf).await?;
+                buf.resize(len, 0);
+                tokio::spawn(async move {
+                    if let Err(e) = udp_incoming_handler(listener, buf, src, opt, cache, auth, timeout).await {
+                        log::error!("DNS query via UDP incoming handler error \"{}\"", e);
+                    }
+                });
+                Ok::<(), Error>(())
+            } => {
+                if let Err(e) = res {
+                    log::error!("UDP listener error \"{}\"", e);
+                    return Err(e);
                 }
-            });
-            Ok::<(), Error>(())
-        };
-        if let Err(e) = block.await {
-            log::error!("UDP listener error \"{}\"", e);
+            }
         }
     }
 }
@@ -142,7 +148,13 @@ async fn udp_incoming_handler(
     Ok::<(), Error>(())
 }
 
-pub(crate) async fn tcp_thread(opt: Config, user_key: Option<UserKey>, cache: Cache<Vec<Query>, Message>, timeout: Duration) -> Result<()> {
+pub(crate) async fn tcp_thread(
+    opt: Config,
+    user_key: Option<UserKey>,
+    cache: Cache<Vec<Query>, Message>,
+    timeout: Duration,
+    shutdown_token: tokio_util::sync::CancellationToken,
+) -> Result<()> {
     let listener = match TcpListener::bind(&opt.listen_addr).await {
         Ok(listener) => listener,
         Err(e) => {
@@ -152,17 +164,31 @@ pub(crate) async fn tcp_thread(opt: Config, user_key: Option<UserKey>, cache: Ca
     };
     log::info!("TCP listening on: {}", opt.listen_addr);
 
-    while let Ok((mut incoming, _)) = listener.accept().await {
-        let opt = opt.clone();
-        let user_key = user_key.clone();
-        let cache = cache.clone();
-        tokio::spawn(async move {
-            if let Err(e) = handle_tcp_incoming(&opt, user_key, cache, &mut incoming, timeout).await {
-                log::error!("TCP error \"{}\"", e);
+    loop {
+        tokio::select! {
+            _ = shutdown_token.cancelled() => {
+                log::info!("TCP shutdown received");
+                return Ok(());
             }
-        });
+            res = listener.accept() => {
+                let (mut incoming, _) = match res {
+                    Ok(conn) => conn,
+                    Err(e) => {
+                        log::error!("TCP listener {} error \"{}\"", opt.listen_addr, e);
+                        return Err(e.into());
+                    }
+                };
+                let opt = opt.clone();
+                let user_key = user_key.clone();
+                let cache = cache.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = handle_tcp_incoming(&opt, user_key, cache, &mut incoming, timeout).await {
+                        log::error!("TCP error \"{}\"", e);
+                    }
+                });
+            }
+        };
     }
-    Ok(())
 }
 
 async fn handle_tcp_incoming(
@@ -172,10 +198,16 @@ async fn handle_tcp_incoming(
     incoming: &mut TcpStream,
     timeout: Duration,
 ) -> Result<()> {
-    let mut buf = [0u8; MAX_BUFFER_SIZE];
-    let n = tokio::time::timeout(timeout, incoming.read(&mut buf)).await??;
+    let mut len_buf = [0u8; 2];
+    tokio::time::timeout(timeout, incoming.read_exact(&mut len_buf)).await??;
+    let len = u16::from_be_bytes(len_buf) as usize;
+    let mut msg_buf = vec![0u8; len];
+    tokio::time::timeout(timeout, incoming.read_exact(&mut msg_buf)).await??;
 
-    let message = dns::parse_data_to_dns_message(&buf[..n], true)?;
+    let mut buf = len_buf.to_vec();
+    buf.extend(msg_buf);
+
+    let message = dns::parse_data_to_dns_message(&buf, true)?;
     let domain = dns::extract_domain_from_dns_message(&message)?;
 
     if opt.cache_records
@@ -191,7 +223,7 @@ async fn handle_tcp_incoming(
 
     let proxy_addr = opt.socks5_settings.addr;
     let target_server = opt.dns_remote_server;
-    let response_buf = tcp_via_socks5_server(proxy_addr, target_server, auth, &buf[..n], timeout).await?;
+    let response_buf = tcp_via_socks5_server(proxy_addr, target_server, auth, &buf, timeout).await?;
 
     incoming.write_all(&response_buf).await?;
 
@@ -216,9 +248,9 @@ where
     A: ToSocketAddrs,
     B: Into<Address>,
 {
-    let s5_proxy = TcpStream::connect(proxy_addr).await?;
+    let s5_proxy = tokio::time::timeout(timeout, TcpStream::connect(proxy_addr)).await??;
     let mut stream = BufStream::new(s5_proxy);
-    let _addr = client::connect(&mut stream, target_server, auth).await?;
+    let _addr = tokio::time::timeout(timeout, client::connect(&mut stream, target_server, auth)).await??;
 
     stream.write_all(buf).await?;
     stream.flush().await?;

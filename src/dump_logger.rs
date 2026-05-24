@@ -1,7 +1,7 @@
 use crate::ArgVerbosity;
 use std::os::raw::{c_char, c_void};
 
-static DUMP_CALLBACK: std::sync::OnceLock<Option<DumpCallback>> = std::sync::OnceLock::new();
+static DUMP_CALLBACK: std::sync::Mutex<Option<DumpCallback>> = std::sync::Mutex::new(None);
 
 /// # Safety
 ///
@@ -11,10 +11,11 @@ pub unsafe extern "C" fn dns2socks_set_log_callback(
     callback: Option<unsafe extern "C" fn(ArgVerbosity, *const c_char, *mut c_void)>,
     ctx: *mut c_void,
 ) {
-    if let Some(_cb) = DUMP_CALLBACK.get_or_init(|| Some(DumpCallback(callback, ctx))) {
+    if let Ok(mut lock) = DUMP_CALLBACK.lock() {
+        *lock = Some(DumpCallback(callback, ctx));
         log::info!("dump log callback set success");
     } else {
-        log::warn!("dump log callback already set");
+        log::warn!("dump log callback set failed");
     }
 }
 
@@ -66,8 +67,9 @@ impl DumpLogger {
             return;
         };
         let ptr = c_msg.as_ptr();
-        if let Some(Some(cb)) = DUMP_CALLBACK.get() {
-            unsafe { cb.clone().call(record.level().into(), ptr) };
+        let callback = DUMP_CALLBACK.lock().ok().and_then(|lock| lock.clone());
+        if let Some(cb) = callback {
+            unsafe { cb.call(record.level().into(), ptr) };
         }
     }
 }
