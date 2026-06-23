@@ -128,10 +128,10 @@ async fn udp_incoming_handler(
             .await
             .map_err(|e| format!("querying \"{domain}\" {e}"))?
     } else {
-        client::UdpClientImpl::datagram(proxy_addr, dest_addr, auth)
+        client::ClientWrapper::datagram(proxy_addr, auth)
             .await
             .map_err(|e| format!("preparing to query \"{domain}\" {e}"))?
-            .transfer_data(&buf, timeout)
+            .transfer_data(dest_addr, &buf, timeout)
             .await
             .map_err(|e| format!("querying \"{domain}\" {e}"))?
     };
