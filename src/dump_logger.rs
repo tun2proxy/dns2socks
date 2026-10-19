@@ -1,14 +1,50 @@
-use crate::ArgVerbosity;
 use std::os::raw::{c_char, c_void};
 
 static DUMP_CALLBACK: std::sync::Mutex<Option<DumpCallback>> = std::sync::Mutex::new(None);
+
+#[repr(C)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum LogLevel {
+    Off = 0,
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl From<log::LevelFilter> for LogLevel {
+    fn from(level: log::LevelFilter) -> Self {
+        match level {
+            log::LevelFilter::Off => LogLevel::Off,
+            log::LevelFilter::Error => LogLevel::Error,
+            log::LevelFilter::Warn => LogLevel::Warn,
+            log::LevelFilter::Info => LogLevel::Info,
+            log::LevelFilter::Debug => LogLevel::Debug,
+            log::LevelFilter::Trace => LogLevel::Trace,
+        }
+    }
+}
+
+impl From<LogLevel> for log::LevelFilter {
+    fn from(level: LogLevel) -> Self {
+        match level {
+            LogLevel::Off => log::LevelFilter::Off,
+            LogLevel::Error => log::LevelFilter::Error,
+            LogLevel::Warn => log::LevelFilter::Warn,
+            LogLevel::Info => log::LevelFilter::Info,
+            LogLevel::Debug => log::LevelFilter::Debug,
+            LogLevel::Trace => log::LevelFilter::Trace,
+        }
+    }
+}
 
 /// # Safety
 ///
 /// set dump log info callback.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dns2socks_set_log_callback(
-    callback: Option<unsafe extern "C" fn(ArgVerbosity, *const c_char, *mut c_void)>,
+    callback: Option<unsafe extern "C" fn(LogLevel, *const c_char, *mut c_void)>,
     ctx: *mut c_void,
 ) {
     if let Ok(mut lock) = DUMP_CALLBACK.lock() {
@@ -20,10 +56,10 @@ pub unsafe extern "C" fn dns2socks_set_log_callback(
 }
 
 #[derive(Clone, Debug)]
-struct DumpCallback(Option<unsafe extern "C" fn(ArgVerbosity, *const c_char, *mut c_void)>, *mut c_void);
+struct DumpCallback(Option<unsafe extern "C" fn(LogLevel, *const c_char, *mut c_void)>, *mut c_void);
 
 impl DumpCallback {
-    unsafe fn call(self, dump_level: ArgVerbosity, info: *const c_char) {
+    unsafe fn call(self, dump_level: LogLevel, info: *const c_char) {
         if let Some(cb) = self.0 {
             unsafe { cb(dump_level, info, self.1) };
         }
@@ -69,7 +105,7 @@ impl DumpLogger {
         let ptr = c_msg.as_ptr();
         let callback = DUMP_CALLBACK.lock().ok().and_then(|lock| lock.clone());
         if let Some(cb) = callback {
-            unsafe { cb.call(record.level().into(), ptr) };
+            unsafe { cb.call(record.level().to_level_filter().into(), ptr) };
         }
     }
 }

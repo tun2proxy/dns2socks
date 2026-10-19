@@ -1,6 +1,6 @@
 #![cfg(target_os = "android")]
 
-use crate::{ArgProxy, ArgVerbosity, Config, LIB_NAME, main_entry};
+use crate::{Config, LIB_NAME, ProxyParameters, main_entry};
 use jni::{
     Env, EnvUnowned,
     objects::{JClass, JString},
@@ -18,7 +18,7 @@ static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> =
 /// - socks5_settings: the socks5 server, e.g. "socks5://[username[:password]@]host:port", or null to use the default value
 /// - force_tcp: whether to force tcp, true or false, default is false
 /// - cache_records: whether to cache dns records, true or false, default is false
-/// - verbosity: the verbosity level, see ArgVerbosity enum, default is ArgVerbosity::Info
+/// - verbosity: log level ordinal (0=Off, 1=Error, 2=Warn, 3=Info, 4=Debug, 5=Trace), default is 3 (Info)
 /// - timeout: the timeout in seconds, default is 5
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
@@ -32,7 +32,15 @@ pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
     verbosity: jint,
     timeout: jint,
 ) -> jint {
-    let verbosity: ArgVerbosity = verbosity.try_into().unwrap_or_default();
+    let verbosity = match verbosity {
+        0 => log::LevelFilter::Off,
+        1 => log::LevelFilter::Error,
+        2 => log::LevelFilter::Warn,
+        3 => log::LevelFilter::Info,
+        4 => log::LevelFilter::Debug,
+        5 => log::LevelFilter::Trace,
+        _ => log::LevelFilter::Info,
+    };
     let filter_str = &format!("off,{LIB_NAME}={verbosity}");
     let filter = android_logger::FilterBuilder::new().parse(filter_str).build();
     android_logger::init_once(
@@ -75,7 +83,7 @@ pub unsafe extern "C" fn Java_com_github_shadowsocks_bg_Dns2socks_start(
                 .cache_records(cache_records)
                 .listen_addr(listen_addr.parse().map_err(std::io::Error::other)?)
                 .dns_remote_server(dns_remote_server.parse()?)
-                .socks5_settings(ArgProxy::try_from(socks5_settings.as_str()).map_err(std::io::Error::other)?);
+                .socks5_settings(&ProxyParameters::try_from(socks5_settings.as_str()).map_err(std::io::Error::other)?);
 
             if let Err(err) = main_entry(cfg, shutdown_token).await {
                 log::error!("main loop error: {}", err);

@@ -6,10 +6,7 @@ mod dump_logger;
 
 use hickory_proto::op::{Message, Query};
 use moka::future::Cache;
-use socks5_impl::{
-    Error, Result, client,
-    protocol::{Address, UserKey},
-};
+use socks5_impl::{Address, Error, Result, UserKey, client};
 use std::{net::SocketAddr, sync::Arc, time::Duration};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufStream},
@@ -18,8 +15,9 @@ use tokio::{
 
 pub use ::tokio_util::sync::CancellationToken;
 pub use api::{dns2socks_start, dns2socks_stop};
-pub use config::{ArgProxy, ArgVerbosity, Config, ProxyType};
-pub use dump_logger::dns2socks_set_log_callback;
+pub use config::Config;
+pub use dump_logger::{LogLevel, dns2socks_set_log_callback};
+pub use socks5_impl::ProxyParameters;
 
 pub const LIB_NAME: &str = "dns2socks_core";
 
@@ -118,7 +116,7 @@ async fn udp_incoming_handler(
         return Ok(());
     }
 
-    let proxy_addr = opt.socks5_settings.addr;
+    let proxy_addr = tokio::time::timeout(timeout, resolve_proxy_addr(opt.socks5_settings.addr.clone())).await??;
     let dest_addr = opt.dns_remote_server;
 
     let data = if opt.force_tcp {
@@ -221,7 +219,7 @@ async fn handle_tcp_incoming(
         return Ok(());
     }
 
-    let proxy_addr = opt.socks5_settings.addr;
+    let proxy_addr = tokio::time::timeout(timeout, resolve_proxy_addr(opt.socks5_settings.addr.clone())).await??;
     let target_server = opt.dns_remote_server;
     let response_buf = tcp_via_socks5_server(proxy_addr, target_server, auth, &buf, timeout).await?;
 
@@ -268,6 +266,18 @@ where
     let mut response_buf = len_buf.to_vec();
     response_buf.extend(msg_buf);
     Ok(response_buf)
+}
+
+async fn resolve_proxy_addr(proxy_addr: Option<Address>) -> Result<SocketAddr> {
+    let proxy_addr =
+        proxy_addr.ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "SOCKS5 proxy address is not configured"))?;
+    proxy_addr.resolve_tokio().await?.next().ok_or_else(|| {
+        std::io::Error::new(
+            std::io::ErrorKind::AddrNotAvailable,
+            "SOCKS5 proxy address resolved to no addresses",
+        )
+        .into()
+    })
 }
 
 fn log_dns_message(prefix: &str, domain: &str, message: &Message) {

@@ -1,4 +1,4 @@
-use crate::{ArgVerbosity, main_entry};
+use crate::{LogLevel, main_entry};
 use std::ffi::{c_char, c_int};
 
 static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> = std::sync::Mutex::new(None);
@@ -12,7 +12,7 @@ static TUN_QUIT: std::sync::Mutex<Option<tokio_util::sync::CancellationToken>> =
 /// - socks5_settings: the socks5 server, e.g. "socks5://[username[:password]@]host:port", or null to use the default value
 /// - force_tcp: whether to force tcp, true or false, default is false
 /// - cache_records: whether to cache dns records, true or false, default is false
-/// - verbosity: the verbosity level, see ArgVerbosity enum, default is ArgVerbosity::Info
+/// - verbosity: the verbosity level, see LogLevel enum, default is LogLevel::Info
 /// - timeout: the timeout in seconds, default is 5
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn dns2socks_start(
@@ -21,7 +21,7 @@ pub unsafe extern "C" fn dns2socks_start(
     socks5_settings: *const c_char,
     force_tcp: bool,
     cache_records: bool,
-    verbosity: ArgVerbosity,
+    verbosity: LogLevel,
     timeout: i32,
 ) -> c_int {
     struct TunQuitGuard;
@@ -47,7 +47,8 @@ pub unsafe extern "C" fn dns2socks_start(
         }
     }
 
-    log::set_max_level(verbosity.into());
+    let verbosity: log::LevelFilter = verbosity.into();
+    log::set_max_level(verbosity);
     if let Err(err) = log::set_boxed_logger(Box::<crate::dump_logger::DumpLogger>::default()) {
         log::warn!("set logger error: {}", err);
     }
@@ -82,10 +83,10 @@ pub unsafe extern "C" fn dns2socks_start(
         let Ok(socks5_settings) = unsafe { std::ffi::CStr::from_ptr(socks5_settings) }.to_str() else {
             return -7;
         };
-        let Ok(proxy_settings) = crate::config::ArgProxy::try_from(socks5_settings) else {
+        let Ok(proxy_settings) = socks5_impl::ProxyParameters::try_from(socks5_settings) else {
             return -8;
         };
-        config.socks5_settings(proxy_settings);
+        config.socks5_settings(&proxy_settings);
     }
 
     let main_loop = async move {

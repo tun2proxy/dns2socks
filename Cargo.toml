@@ -14,20 +14,20 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies]
 chrono = "0.4.45"
-clap = { version = "4.6.1", features = ["derive", "wrap_help"] }
+clap = { version = "4.6.7", features = ["derive", "wrap_help"] }
 ctrlc2 = { version = "4.0.0", features = ["async", "termination"] }
 dotenvy = "0.15.7"
-env_logger = "0.11.10"
-hickory-proto = "0.26.1"
-log = "0.4.33"
-moka = { version = "0.12.15", default-features = false, features = ["future"] }
+env_logger = "0.11.11"
+hickory-proto = "0.26.3"
+log = "0.4.34"
+moka = { version = "0.12.16", default-features = false, features = ["future"] }
 percent-encoding = "2.3.2"
-rand = "0.10.1"
-socks5-impl = { version = "0.9.0", default-features = false, features = [
+rand = "0.10.3"
+socks5-impl = { version = "0.10.2", default-features = false, features = [
     "client",
 ] }
-tokio = { version = "1.52.3", features = ["full"] }
-tokio-util = "0.7.18"
+tokio = { version = "1.53.3", features = ["full"] }
+tokio-util = "0.7.20"
 url = "2.5.8"
 
 [target.'cfg(target_os="android")'.dependencies]
