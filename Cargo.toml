@@ -23,7 +23,7 @@ log = "0.4.34"
 moka = { version = "0.12.16", default-features = false, features = ["future"] }
 percent-encoding = "2.3.2"
 rand = "0.10.3"
-socks5-impl = { version = "0.10.2", default-features = false, features = [
+socks5-impl = { version = "0.10.3", default-features = false, features = [
     "client",
 ] }
 tokio = { version = "1.53.3", features = ["full"] }

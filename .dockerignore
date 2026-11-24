@@ -1,0 +1,11 @@
+.git
+.github
+target
+build
+tmp
+*.xcframework
+.env
+.idea
+.vscode
+Dockerfile
+.dockerignore

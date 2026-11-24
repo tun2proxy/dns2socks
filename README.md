@@ -21,6 +21,14 @@ If you have [Rust](https://rustup.rs/) toolchain installed, you can install `dns
 cargo install dns2socks
 ```
 
+### Docker
+
+```sh
+docker run -d --name dns2socks -p 53:53/udp -p 53:53/tcp \
+  ghcr.io/routetechnologies/dns2socks:latest \
+  -l 0.0.0.0:53 -s socks5://host.docker.internal:1080
+```
+
 ## Usage
 
 ```plaintext
