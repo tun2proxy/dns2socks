@@ -37,7 +37,5 @@ jobs:
           push: false
           load: true
           tags: dns2socks:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
       - name: Smoke test
         run: docker run --rm dns2socks:ci --version

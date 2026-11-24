@@ -271,7 +271,7 @@ where
 async fn resolve_proxy_addr(proxy_addr: Option<Address>) -> Result<SocketAddr> {
     let proxy_addr =
         proxy_addr.ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "SOCKS5 proxy address is not configured"))?;
-    proxy_addr.resolve_tokio().await?.next().ok_or_else(|| {
+    proxy_addr.resolve_using_tokio().await?.next().ok_or_else(|| {
         std::io::Error::new(
             std::io::ErrorKind::AddrNotAvailable,
             "SOCKS5 proxy address resolved to no addresses",
