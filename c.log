@@ -1,0 +1,10 @@
+[2026-11-24T20:35:54Z INFO  dns2socks_core] Starting DNS2Socks listening on 127.0.0.1:5300...
+[2026-11-24T20:35:54Z INFO  dns2socks_core] TCP listening on: 127.0.0.1:5300
+[2026-11-24T20:35:54Z INFO  dns2socks_core] Udp listening on: 127.0.0.1:5300
+[2026-11-24T20:35:55Z TRACE dns2socks_core] DNS query via UDP "e2e.example.test." <==> "10.20.30.40"
+[2026-11-24T20:35:55Z TRACE dns2socks_core] DNS query via TCP cache hit "e2e.example.test." <==> "10.20.30.40"
+[2026-11-24T20:35:56Z TRACE dns2socks_core] DNS query via UDP cache hit "e2e.example.test." <==> "10.20.30.40"
+[2026-11-24T20:35:56Z TRACE dns2socks_core] DNS query via TCP cache hit "e2e.example.test." <==> "10.20.30.40"
+[2026-11-24T20:35:56Z INFO  dns2socks] Ctrl-C received, exiting...
+[2026-11-24T20:35:56Z INFO  dns2socks_core] UDP shutdown received
+[2026-11-24T20:35:56Z INFO  dns2socks_core] DNS2Socks stopped

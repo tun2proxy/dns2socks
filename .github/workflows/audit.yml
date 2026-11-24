@@ -1,0 +1,37 @@
+name: Security Audit
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  push:
+    paths:
+      - Cargo.toml
+      - Dockerfile
+      - .github/workflows/audit.yml
+  pull_request:
+    paths:
+      - Cargo.toml
+      - Dockerfile
+      - .github/workflows/audit.yml
+  workflow_dispatch:
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cargo-audit:
+    runs-on: [self-hosted, docker-runner]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: cargo audit
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: audit
+          push: false
+          # always re-fetch the advisory database
+          no-cache-filters: audit

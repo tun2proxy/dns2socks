@@ -14,6 +14,14 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cargo clippy --all-targets --all-features -- -D warnings \
     && cargo test --all-features
 
+# Dependency vulnerability scan: `docker build --target audit .`
+FROM base AS audit
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo install cargo-audit --locked
+# Cargo.lock is not committed, so resolve the latest versions first
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo generate-lockfile && cargo audit
+
 FROM base AS builder
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \

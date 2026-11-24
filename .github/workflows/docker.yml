@@ -10,7 +10,14 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  # Release gate: only publish if the real E2E scenarios pass
+  e2e:
+    uses: ./.github/workflows/e2e.yml
+    permissions:
+      contents: read
+
   docker:
+    needs: e2e
     runs-on: [self-hosted, docker-runner]
     permissions:
       contents: read
