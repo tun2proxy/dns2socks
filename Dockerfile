@@ -1,9 +1,20 @@
 # syntax=docker/dockerfile:1
 
-FROM rust:1-slim-bookworm AS builder
+FROM rust:1-slim-bookworm AS base
 WORKDIR /src
-COPY Cargo.toml ./
+COPY Cargo.toml rustfmt.toml ./
 COPY src ./src
+
+# Rust checks: `docker build --target ci .` (fails the build on any error)
+FROM base AS ci
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/src/target \
+    rustup component add rustfmt clippy \
+    && cargo fmt --all -- --check \
+    && cargo clippy --all-targets --all-features -- -D warnings \
+    && cargo test --all-features
+
+FROM base AS builder
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/src/target \
     cargo build --release --bin dns2socks \
