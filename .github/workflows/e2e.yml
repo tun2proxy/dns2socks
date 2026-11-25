@@ -1,0 +1,54 @@
+name: E2E
+
+on:
+  push:
+    branches-ignore:
+      - "dependabot/**"
+    paths:
+      - Cargo.toml
+      - src/**
+      - Dockerfile
+      - e2e/**
+      - .github/workflows/e2e.yml
+  pull_request:
+    paths:
+      - Cargo.toml
+      - src/**
+      - Dockerfile
+      - e2e/**
+      - .github/workflows/e2e.yml
+  workflow_dispatch:
+  workflow_call:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: [self-hosted, docker-runner]
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build dns2socks image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: dns2socks:e2e
+
+      - name: Build E2E tools image
+        uses: docker/build-push-action@v6
+        with:
+          context: e2e
+          push: false
+          load: true
+          tags: dns2socks-e2e-tools:latest
+
+      - name: Run E2E scenarios
+        run: bash e2e/run.sh

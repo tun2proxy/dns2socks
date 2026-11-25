@@ -1,0 +1,39 @@
+name: Rust CI
+
+on:
+  push:
+    branches-ignore:
+      - "dependabot/**"
+    paths:
+      - Cargo.toml
+      - rustfmt.toml
+      - src/**
+      - Dockerfile
+      - .github/workflows/rust-ci.yml
+  pull_request:
+    paths:
+      - Cargo.toml
+      - rustfmt.toml
+      - src/**
+      - Dockerfile
+      - .github/workflows/rust-ci.yml
+
+concurrency:
+  group: rust-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # rustfmt + clippy (-D warnings) + cargo test, all inside the Docker `ci` stage
+  rust-checks:
+    runs-on: [self-hosted, docker-runner]
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: fmt, clippy, test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: ci
+          push: false
